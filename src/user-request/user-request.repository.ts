@@ -4,7 +4,7 @@ import { UserRequest } from "./user-request";
 export const UserRequestSchema: Schema<UserRequest> = new Schema<UserRequest>({
     userIp: {
         type: String,
-        required: [true, 'The user ip must be informed!']
+        required: [true, 'The userIp must be informed!']
     },
     endpoint: {
         type: String,
@@ -20,7 +20,7 @@ export const UserRequestSchema: Schema<UserRequest> = new Schema<UserRequest>({
     },
     statusCode: {
         type: Number,
-        required: [true, 'The status code must be informed!']
+        required: [true, 'The statusCode must be informed!']
     },
     userAgent: {
         type: String,

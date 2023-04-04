@@ -1,8 +1,19 @@
-import { Router } from "express";
+import {Router} from "express";
+import {spotifyAuthService} from "./utils/factory";
 
-export function routesApi(): Router {
-    const routes = Router()
+class Routes {
+    private routes = Router()
 
-    routes.post('')
-    return routes
+    get mainConfiguration() {
+        this.spotifyRoutes()
+
+        return this.routes
+    }
+
+    private spotifyRoutes() {
+        this.routes.post('/spotify/auth', spotifyAuthService.authorization)
+        this.routes.get('/spotify/callback', spotifyAuthService.getAuthToken)
+    }
 }
+
+export const routes = new Routes
