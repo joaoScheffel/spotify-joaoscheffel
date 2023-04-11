@@ -1,13 +1,18 @@
 import {Router} from "express";
-import {spotifyController} from "./utils/factory";
+import {authController, authService, spotifyController} from "./utils/factory";
 
 class Routes {
     private routes = Router()
 
     get mainConfiguration() {
         this.spotifyRoutes()
+        this.authRoutes()
 
         return this.routes
+    }
+
+    private authRoutes() {
+        this.routes.post('/auth/refresh-token', authService.authorization, authController.refreshToken)
     }
 
     private spotifyRoutes() {

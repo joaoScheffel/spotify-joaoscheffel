@@ -21,6 +21,7 @@ class AppServer {
         this.middlewares()
         this.routes()
 
+        this._express.use(requestErrorMiddleware.validateErrors)
         this.appListen()
     }
 
@@ -28,7 +29,6 @@ class AppServer {
         this._express.use(morgan('dev'))
         this._express.use(express.json())
         this._express.use(express.urlencoded({extended: true}))
-        this._express.use(requestErrorMiddleware.validateErrors)
     }
 
     routes () {
