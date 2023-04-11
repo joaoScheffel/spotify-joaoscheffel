@@ -1,10 +1,10 @@
 import 'express-async-errors'
-import express, { Express } from "express"
+import express, {Express} from "express"
 import morgan from 'morgan'
 import dotenv from 'dotenv'
-import { requestErrorMiddleware } from './error/request-error.middleware'
 import {routes} from './routes'
 import {Mongoose} from './database'
+import {requestErrorMiddleware} from "./utils/factory";
 
 class AppServer {
     protected _express: Express

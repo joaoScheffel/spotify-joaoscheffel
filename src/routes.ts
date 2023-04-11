@@ -1,5 +1,5 @@
 import {Router} from "express";
-import {spotifyAuthService} from "./utils/factory";
+import {spotifyController} from "./utils/factory";
 
 class Routes {
     private routes = Router()
@@ -11,8 +11,8 @@ class Routes {
     }
 
     private spotifyRoutes() {
-        this.routes.post('/spotify/auth', spotifyAuthService.authorization)
-        this.routes.get('/spotify/callback', spotifyAuthService.getAuthToken)
+        this.routes.post('/spotify/auth', spotifyController.authorization)
+        this.routes.get('/spotify/callback', spotifyController.getAndSaveUser)
     }
 }
 
