@@ -7,82 +7,34 @@ import {ApiIntegrationLogsService} from "../../api-integration-logs/api-integrat
 import {EndpointType} from "../../api-integration-logs/endpoint-type";
 import {SpotifyTokenResponse} from "../token/spotify-token";
 import {ServerError} from "../../error/server-error";
+import {SpotifyGrantType} from "./grant-type";
 
 export class SpotifyAuthService {
-    async authorization(): Promise<string> {
-        const state: string = process.env.SPOTIFY_STATE
-        const clientId: string = process.env.SPOTIFY_CLIENT_ID
-        const scope = 'user-read-private user-read-email'
-        const redirectUri: string = 'http://localhost:3333/spotify/callback'
+    readonly clientId: string
+    readonly clientSecret: string
+    readonly redirectUri: string
+    readonly state: string
 
-        const query = querystring.stringify({
-            response_type: 'code',
-            client_id: clientId,
-            scope: scope,
-            redirect_uri: redirectUri,
-            state: state
-        })
+    constructor() {
+        this.clientId = process.env.SPOTIFY_CLIENT_ID
+        this.clientSecret = process.env.SPOTIFY_CLIENT_SECRET
+        this.state = process.env.SPOTIFY_STATE
+        this.redirectUri = 'http://localhost:3333/spotify/callback'
+    }
 
-        const apiIntegrationLogs = new ApiIntegrationLogsService(EndpointType.SPOTIFY_AUTH)
-
-        const fetchRequest = await fetch('https://accounts.spotify.com/authorize?' + query, {
-            method: "GET"
-        })
-
-        if (fetchRequest?.status > 400) {
-            await apiIntegrationLogs.setError({
-                error: fetchRequest,
-                message: 'Spotify Authorization Error',
-                errorHandled: false
-            })
-            throw new ServerError('SpotifyAuthService.authorization at fetchRequest?.status > 400')
-        }
-
-        await apiIntegrationLogs.setFinish()
-
-        return fetchRequest.url
+    async userAuthorization(): Promise<string> {
+        return spotifyAuthService.callAuthorize('code', 'user-read-private user-read-email user-top-read')
     }
 
     async getAccessToken(req: Request): Promise<SpotifyTokenResponse> {
-        const clientId: string = process.env.SPOTIFY_CLIENT_ID
-        const clientSecret: string = process.env.SPOTIFY_CLIENT_SECRET
-        const redirectUri: string = 'http://localhost:3333/spotify/callback'
-        const code: string = await spotifyAuthService.callback(req)
-
-        const apiIntegrationLogs = new ApiIntegrationLogsService(EndpointType.SPOTIFY_AUTH)
-        let errorMessage = ''
-
-        const body = querystring.stringify({
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-            code: code
-        })
-
-        const fetchRequest = await fetch('https://accounts.spotify.com/api/token', {
-            method: "POST",
-            headers: {
-                "Authorization": "Basic " + (Buffer.from(clientId + ':' + clientSecret).toString('base64')),
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: body
-        })
-
-        const spotifyTokenResponse: SpotifyTokenResponse = await fetchRequest.json()
-
-        if (spotifyTokenResponse?.error) {
-            errorMessage = 'Get spotify token error!'
-            await apiIntegrationLogs.setError({
-                error: spotifyTokenResponse,
-                message: errorMessage
-            })
-
-            throw new BadRequestError(errorMessage)
-        }
-
-        return spotifyTokenResponse
+        return spotifyAuthService.callApiToken(SpotifyGrantType.authorization_code, req)
     }
 
-    async callback(req: Request): Promise<string> {
+    async refreshAccessToken(): Promise<SpotifyTokenResponse> {
+        return spotifyAuthService.callApiToken(SpotifyGrantType.refresh_token)
+    }
+
+    async verifyCallback(req: Request): Promise<string> {
         const apiIntegrationLogs = new ApiIntegrationLogsService(EndpointType.SPOTIFY_CALLBACK)
         let errorMessage = ""
 
@@ -123,5 +75,75 @@ export class SpotifyAuthService {
         await apiIntegrationLogs.setFinish()
 
         return code
+    }
+
+    private async callAuthorize(responseType: string, scope: string): Promise<string> {
+        const query = querystring.stringify({
+            response_type: responseType,
+            client_id: this.clientId,
+            scope: scope,
+            redirect_uri: this.redirectUri,
+            state: this.state
+        })
+
+        const apiIntegrationLogs = new ApiIntegrationLogsService(EndpointType.SPOTIFY_AUTH)
+
+        const fetchRequest = await fetch('https://accounts.spotify.com/authorize?' + query, {
+            method: "GET"
+        })
+
+        if (fetchRequest?.status > 400) {
+            await apiIntegrationLogs.setError({
+                error: fetchRequest,
+                message: 'Spotify Authorization Error',
+                errorHandled: false
+            })
+            throw new ServerError('SpotifyAuthService.authorization at fetchRequest?.status > 400')
+        }
+
+        await apiIntegrationLogs.setFinish()
+
+        return fetchRequest.url
+    }
+
+    private async callApiToken(grantType: SpotifyGrantType, req?: Request): Promise<SpotifyTokenResponse> {
+        const apiIntegrationLogs = new ApiIntegrationLogsService(EndpointType.SPOTIFY_AUTH)
+        let body: string
+
+        if (req) {
+            body = querystring.stringify({
+                grant_type: grantType,
+                redirect_uri: this.redirectUri,
+                code: await spotifyAuthService.verifyCallback(req)
+            })
+        } else {
+            body = querystring.stringify({
+                grant_type: grantType,
+                redirect_uri: this.redirectUri
+            })
+        }
+
+        const fetchRequest = await fetch('https://accounts.spotify.com/api/token', {
+            method: "POST",
+            headers: {
+                "Authorization": "Basic " + (Buffer.from(this.clientId + ':' + this.clientSecret).toString('base64')),
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: body
+        })
+
+        const spotifyTokenResponse: SpotifyTokenResponse = await fetchRequest.json()
+
+        if (spotifyTokenResponse?.error) {
+            let errorMessage = 'Get spotify token error!'
+            await apiIntegrationLogs.setError({
+                error: spotifyTokenResponse,
+                message: errorMessage
+            })
+
+            throw new BadRequestError(errorMessage)
+        }
+
+        return spotifyTokenResponse
     }
 }

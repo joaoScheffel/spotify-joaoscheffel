@@ -8,14 +8,15 @@ import {ApiIntegrationLogsService} from "../api-integration-logs/api-integration
 import {EndpointType} from "../api-integration-logs/endpoint-type";
 import {JsonWebTokenService} from "../json-web-token/json-web-token.service";
 import {BadRequestError} from "../error/bad-request-error";
+import querystring from "querystring";
 
 export class SpotifyService {
-    async getAndSaveUser(spotifyTokenResponse: SpotifyTokenResponse): Promise<string> {
+    async saveNewUserAndAccessToken(spotifyTokenResponse: SpotifyTokenResponse): Promise<string> {
         if (!spotifyTokenResponse) {
             throw new ServerError('SpotifyService.createNewSpotifyUser at !spotifyTokenResponse')
         }
 
-        const spotifyUserProfileResponse: SpotifyUserProfileResponse = await spotifyService.getSpotifyUserProfileResponse(spotifyTokenResponse)
+        const spotifyUserProfileResponse: SpotifyUserProfileResponse = await spotifyService.callGetSpotifyUserProfile(spotifyTokenResponse.access_token)
 
         const spotifyUserProfile: SpotifyUserProfile = await spotifyService.insertNewUserProfileFromResponse(spotifyUserProfileResponse)
 
@@ -24,25 +25,46 @@ export class SpotifyService {
         return await new JsonWebTokenService().generateAuthorizationToken(spotifyUserProfile.userUuid)
     }
 
-    async getSpotifyUserProfileResponse(spotifyTokenResponse: SpotifyTokenResponse): Promise<SpotifyUserProfileResponse> {
-        if (!spotifyTokenResponse) {
-            throw new ServerError('SpotifyService.getUserFromAccessToken at !spotifyTokenResponse')
+    private async callGetUserTopItems(accessToken: string, type: string, timeRange: string, limit: number, offset: number) {
+        if (!accessToken) {
+            throw new ServerError('SpotifyService.callGetUserTopItems at !accessToken')
+        }
+        const urlApi: string = `https://api.spotify.com/v1/me/top/${type}`
+
+        const body = querystring.stringify({
+            limit: limit,
+            time_range: timeRange,
+            offset: offset
+        })
+
+        const fetchRequest = await fetch(urlApi + body, {
+            method: 'GET',
+            headers: {
+                "Authorization": "Bearer " + accessToken
+            }
+        })
+
+
+    }
+
+    private async callGetSpotifyUserProfile(accessToken: string): Promise<SpotifyUserProfileResponse> {
+        if (!accessToken) {
+            throw new ServerError('SpotifyService.callGetSpotifyUserProfile at !accessToken')
         }
 
         const apiIntegrationLogs = new ApiIntegrationLogsService(EndpointType.SPOTIFY_GET_CURRENT_USER_PROFILE)
-        let errorMessage = ''
 
         const fetchRequest = await fetch('https://api.spotify.com/v1/me', {
             method: 'GET',
             headers: {
-                "Authorization": "Bearer " + spotifyTokenResponse.access_token
+                "Authorization": "Bearer " + accessToken
             }
         })
 
         const fetchResponse = await fetchRequest.json()
 
         if (fetchResponse?.error) {
-            errorMessage = 'Spotify integration system failed!'
+            let errorMessage = 'Spotify integration system failed!'
             await apiIntegrationLogs.setError({
                 error: fetchResponse,
                 message: errorMessage,
@@ -56,7 +78,7 @@ export class SpotifyService {
         return fetchResponse
     }
 
-    async insertNewUserProfileFromResponse(spotifyUserProfileResponse: SpotifyUserProfileResponse): Promise<SpotifyUserProfile> {
+    private async insertNewUserProfileFromResponse(spotifyUserProfileResponse: SpotifyUserProfileResponse): Promise<SpotifyUserProfile> {
         if (!spotifyUserProfileResponse) {
             throw new ServerError('.insertNewUserProfile at !spotifyUserProfileResponse')
         }

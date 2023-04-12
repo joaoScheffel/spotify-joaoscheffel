@@ -5,7 +5,7 @@ import {SpotifyTokenResponse} from "./token/spotify-token";
 export class SpotifyController {
 
     async authorization (req: Request, res: Response) {
-        const url = await spotifyAuthService.authorization()
+        const url = await spotifyAuthService.userAuthorization()
 
         return res.status(200).json({
             message: 'Authorization url successfully obtained!',
@@ -15,7 +15,7 @@ export class SpotifyController {
     async getAndSaveUser(req: Request, res: Response) {
         const spotifyTokenResponse: SpotifyTokenResponse = await spotifyAuthService.getAccessToken(req)
 
-        const accessToken: string = await spotifyService.getAndSaveUser(spotifyTokenResponse)
+        const accessToken: string = await spotifyService.saveNewUserAndAccessToken(spotifyTokenResponse)
 
         return res.status(201).json({
             message: 'User successfully saved!',
