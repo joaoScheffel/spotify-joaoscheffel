@@ -9,13 +9,24 @@ export class RequestErrorMiddleware {
         const name = error?.name
         const origin = error?.origin
 
-        if (!res.headersSent) {
-            res.status(statusCode).json({ message: message, name: name, stack: stack, origin })
+        const isDevelopment = process.env.NODE_ENV === 'development';
 
-            return
+        if (!res.headersSent) {
+            res.status(statusCode).json({
+                message: message,
+                name: name,
+                stack: isDevelopment ? stack : undefined,
+                origin
+            });
+            return;
         } else {
-            res.status(statusCode).json({ message: message, name: name, stack: stack, origin })
-            return
+            res.status(statusCode).json({
+                message: message,
+                name: name,
+                stack: isDevelopment ? stack : undefined,
+                origin
+            });
+            return;
         }
     }
 }

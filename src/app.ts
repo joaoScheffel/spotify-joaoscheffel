@@ -2,9 +2,13 @@ import 'express-async-errors'
 import express, {Express} from "express"
 import morgan from 'morgan'
 import dotenv from 'dotenv'
-import {routes} from './routes'
+import {Routes} from './routes'
 import {Mongoose} from './database'
 import {requestErrorMiddleware} from "./utils/factory";
+import Config from "./config";
+
+
+const routes = new Routes()
 
 class AppServer {
     protected _express: Express
@@ -13,6 +17,7 @@ class AppServer {
         this._express = express()
         this.mainConfiguration()
         this.runMongooseConfiguration()
+        this.runEnvVariables()
     }
 
     mainConfiguration() {
@@ -39,12 +44,15 @@ class AppServer {
         new Mongoose()
     }
 
+    runEnvVariables(): void {
+        Config.load()
+    }
 
-
-    appListen() {
-        this._express.listen(process.env.PORT, () => {
-            console.log(`Server running in http://localhost:${process.env.PORT} `)
-        })
+    appListen(): void {
+        const port = process.env.PORT || 3333;
+        this._express.listen(port, () => {
+            console.log(`Server running in http://localhost:${port} `);
+        });
     }
 }
 

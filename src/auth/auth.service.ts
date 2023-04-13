@@ -9,20 +9,14 @@ import {JsonWebTokenService} from "../json-web-token/json-web-token.service";
 
 export class AuthService {
     async authorization(req: Request, res: Response, next: NextFunction) {
-        if (!req.headers["authorization"]) {
-            throw new UnauthorizedError('Authorization Bearer must be informed!')
-        }
-        if (req.headers["authorization"].split('Bearer ').length <= 1) {
-            throw new UnauthorizedError('Authorization Bearer token not provide!')
-        }
-        const token = req.headers["authorization"].split('Bearer ')[1]
+        const token: string = this.extractTokenFromHeader(req)
         const decodedToken: AuthorizationToken = await authService.verifyAuthorization<AuthorizationToken>(token)
         const refreshToken: RefreshToken = await authService.verifyAuthorization<RefreshToken>(decodedToken.refreshToken)
 
         if (req.path === "/auth/refresh-token") {
-            await authService.validateRefreshToken(decodedToken, refreshToken)
+            await authService.checkTokenExpiration(decodedToken, refreshToken)
         } else {
-            await authService.validateRefreshToken(decodedToken)
+            await authService.checkTokenExpiration(decodedToken)
         }
 
         if (!await spotifyUserProfileRepository.findUserProfileByUserUuid(decodedToken.userUuid)) {
@@ -32,8 +26,21 @@ export class AuthService {
         next()
     }
 
+    private extractTokenFromHeader(req: Request): string {
+        const authHeader = req.headers["authorization"]
+        if (!authHeader) {
+            throw new UnauthorizedError("Authorization Bearer must be informed!")
+        }
+        const parts = authHeader.split("Bearer ")
+        if (parts.length <= 1) {
+            throw new UnauthorizedError("Authorization Bearer token not provided.")
+        }
+        return parts[1]
+    }
+
     async refreshToken(req: Request): Promise<string> {
-        const token = req.headers["authorization"].split('Bearer ')[1]
+        const token: string = this.extractTokenFromHeader(req)
+
         const decodedToken: AuthorizationToken = await authService.verifyAuthorization<AuthorizationToken>(token)
         await authService.verifyAuthorization<RefreshToken>(decodedToken.refreshToken)
 
@@ -45,8 +52,30 @@ export class AuthService {
 
         return await new JsonWebTokenService().generateAuthorizationToken(userProfile.userUuid)
     }
+    private async verifyAuthorization<T>(token: string): Promise<T> {
+        const secret = process.env.SECRET
+        return await this.verifyToken<T>(token, secret)
+    }
 
-    async validateRefreshToken(decodedToken: AuthorizationToken, refreshToken?: RefreshToken) {
+    private async verifyToken<T>(token: string, secret: string): Promise<T> {
+        if (!token) {
+            throw new ServerError('AuthService.verifyAuthorization at !token')
+        }
+
+        return new Promise<T>((resolve, reject) => {
+            verify(token, secret, (error, decoded) => {
+                if (error) {
+                    reject(new UnauthorizedError('Invalid authorization token!'))
+                } else if (decoded) {
+                    resolve(decoded as T)
+                } else {
+                    reject(new UnauthorizedError('Invalid authorization payload!'))
+                }
+            })
+        })
+    }
+
+    private async checkTokenExpiration(decodedToken: AuthorizationToken, refreshToken?: RefreshToken) {
         if (decodedToken.expiresIn < Date.now()) {
             throw new UnauthorizedError('Expired authorization token!')
         }
@@ -60,30 +89,5 @@ export class AuthService {
         }
 
         return
-    }
-
-    async verifyAuthorization<T>(token: string): Promise<{}> {
-        if (!token) {
-            throw new ServerError('AuthService.verifyAuthorization at !token')
-        }
-
-        let payloadToReturn = {}
-
-        await verify(token, process.env.SECRET, (error, decoded) => {
-            if (error) {
-                throw new UnauthorizedError('Invalid authorization token!')
-            }
-            if (Object.keys(decoded).length) {
-                for (const obj of Object.keys(decoded)) {
-                    payloadToReturn[obj] = decoded[obj]
-                }
-            }
-        })
-
-        if (!payloadToReturn) {
-            throw new UnauthorizedError('Invalid authorization payload!')
-        }
-
-        return payloadToReturn
     }
 }

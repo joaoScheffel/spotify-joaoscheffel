@@ -11,15 +11,12 @@ export class Mongoose {
         this.connectToDatabase()
     }
 
-    connectToDatabase(): Promise<void> {
-        mongoose.connect(this._uri)
-            .then(() => {
-                console.log('Successfully connected to database!')
-            })
-            .catch((e) => {
-                console.log('Error connecting to database, error log: ' + e)
-                return
-            })
-        return
+    async connectToDatabase(): Promise<void> {
+        try {
+            await mongoose.connect(this._uri);
+            console.log('Successfully connected to database!');
+        } catch (e) {
+            console.log('Error connecting to database, error log: ' + e);
+        }
     }
 }

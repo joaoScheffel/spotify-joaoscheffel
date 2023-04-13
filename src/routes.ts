@@ -1,7 +1,7 @@
 import {Router} from "express";
 import {authController, authService, spotifyController} from "./utils/factory";
 
-class Routes {
+export class Routes {
     private routes = Router()
 
     get mainConfiguration() {
@@ -20,5 +20,3 @@ class Routes {
         this.routes.get('/spotify/callback', spotifyController.getAndSaveUser)
     }
 }
-
-export const routes = new Routes

@@ -26,21 +26,21 @@ export const spotifyTokensSchema: Schema = new Schema<SpotifyToken>({
 export const SpotifyTokensCollection = model<SpotifyToken>('SpotifyTokensCollection', spotifyTokensSchema, 'tokens')
 
 export class SpotifyTokenRepository {
-    async insertNewToken(config: SpotifyToken): Promise<SpotifyToken> {
-        if (!config) {
-            throw new ServerError('SpotifyTokenRepository.insertNewToken at !config')
+    async insertNewToken(newToken: SpotifyToken): Promise<SpotifyToken> {
+        if (!newToken) {
+            throw new ServerError('SpotifyTokenRepository.insertNewToken at !newToken')
         }
 
-        const hasUserRegistration = await spotifyTokenRepository.findByUserUuid(config.spotifyTokenUuid)
+        const hasUserRegistration = await spotifyTokenRepository.findByUserUuid(newToken.spotifyTokenUuid)
 
         if (hasUserRegistration) {
             await spotifyTokenRepository.setIsLastTokenToFalse(hasUserRegistration.spotifyTokenUuid)
-            config.lasTokenUuid = hasUserRegistration.spotifyTokenUuid
+            newToken.lasTokenUuid = hasUserRegistration.spotifyTokenUuid
         }
 
-        config.isLastToken = true
+        newToken.isLastToken = true
 
-        return await SpotifyTokensCollection.create({...config})
+        return await SpotifyTokensCollection.create({...newToken})
     }
 
     async findByUserUuid(userUuid: string): Promise<SpotifyToken> {

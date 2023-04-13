@@ -4,7 +4,9 @@
   "description": "A api spotify project by joaoscheffel",
   "main": "index.js",
   "scripts": {
-    "dev": "tsnd --respawn --transpile-only src/app.ts"
+    "dev": "tsnd --respawn --transpile-only src/app.ts",
+    "prestart": "tsc",
+    "start": "node dist/app.js"
   },
   "keywords": [],
   "author": "",
